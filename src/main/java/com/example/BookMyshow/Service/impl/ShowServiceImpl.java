@@ -4,13 +4,18 @@ import com.example.BookMyshow.Model.*;
 import com.example.BookMyshow.Repository.*;
 import com.example.BookMyshow.Service.ShowService;
 import com.example.BookMyshow.converter.ShowConverter;
-import com.example.BookMyshow.dto.ShowDto;
-import org.apache.catalina.LifecycleState;
+import com.example.BookMyshow.converter.ShowConverter;
+import com.example.BookMyshow.dto.EntryDto.ShowEntryDto;
+import com.example.BookMyshow.dto.ResponseDto.ShowResponseDto;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j //Helps
+@Service
 public class ShowServiceImpl implements ShowService {
 
     @Autowired
@@ -26,39 +31,62 @@ public class ShowServiceImpl implements ShowService {
     ShowRepository showRepository;
 
     @Override
-    public ShowDto addShow(ShowDto showDto) {
-        ShowEntity showEntity= ShowConverter.dtoToEntity(showDto);
+    public ShowResponseDto addShow(ShowEntryDto showEntryDto) {
 
-        MovieEntity movieEntity= movieRepository.findById(showDto.getMovieDto().getId()).get();
-        showEntity.setMovie(movieEntity);
+        ShowEntity showEntity = ShowConverter.convertDtoToEntity(showEntryDto);
 
-        TheaterEntity theaterEntity=theaterRepository.findById(showDto.getTheaterDto().getId()).get();
+        //MovieEntity
+        MovieEntity movieEntity = movieRepository.findById(showEntryDto.getMovieResponseDto().getId()).get();
+
+        TheaterEntity theaterEntity = theaterRepository.findById(showEntryDto.getTheaterResponseDto().getId()).get();
+
+
+        showEntity.setMovie(movieEntity); //Why are we setting these varibble
         showEntity.setTheater(theaterEntity);
 
-        List<ShowSeatsEntity> seats = createShowSeatsEntity(theaterEntity.getSeats(),showEntity);
-        showEntity.setSeats(seats);
+        showEntity = showRepository.save(showEntity);
 
-        showRepository.save(showEntity);
 
-        return showDto;
+        //We need to pass the list of the theater seats
+        List<ShowSeatsEntity> showSeatsEntityList = generateShowEntitySeats(theaterEntity.getSeats(),showEntity);
+        showSeatsRepository.saveAll(showSeatsEntityList);
+        //We need to create Response Show Dto.
+
+        ShowResponseDto showResponseDto = ShowConverter.convertEntityToDto(showEntity,showEntryDto);
+
+        return showResponseDto;
     }
 
+    public List<ShowSeatsEntity> generateShowEntitySeats(List<TheaterSeatsEntity> theaterSeatsEntityList,ShowEntity showEntity){
 
-    public List<ShowSeatsEntity> createShowSeatsEntity(List<TheaterSeatsEntity> theaterSeats, ShowEntity show){
+        List<ShowSeatsEntity> showSeatsEntityList = new ArrayList<>();
 
-        List<ShowSeatsEntity> showSeats = new ArrayList<>();
-        for(TheaterSeatsEntity seat: theaterSeats){
-            ShowSeatsEntity showSeat= ShowSeatsEntity.builder().id(seat.getId()).seatNumber(seat.getSeatNumber()).
-                    seatType(seat.getSeatType()).
-                    show(show).
-                    build(); // booked by default FALSE
+        //log.info(String.valueOf(theaterSeatsEntityList));
+//        log.info("The list of theaterEntity Seats");
+//        for(TheaterSeatsEntity tse: theaterSeatsEntityList){
+//            log.info(tse.toString());
+//        }
 
-            showSeats.add(showSeat);
+
+        for(TheaterSeatsEntity tse : theaterSeatsEntityList){
+
+            ShowSeatsEntity showSeatsEntity = ShowSeatsEntity.builder().seatNumber(tse.getSeatNumber())
+                    .seatType(tse.getSeatType())
+                    .rate(tse.getRate())
+                    .build();
+
+            showSeatsEntityList.add(showSeatsEntity);
         }
 
-        showSeatsRepository.saveAll(showSeats);
-        return showSeats;
-    }
 
+        //We need to set the show Entity for each of the ShowSeat....
+        for(ShowSeatsEntity showSeatsEntity:showSeatsEntityList){
+            showSeatsEntity.setShow(showEntity);
+        }
+
+        showEntity.setSeats(showSeatsEntityList);
+        return showSeatsEntityList;
+
+    }
 
 }

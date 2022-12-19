@@ -6,38 +6,64 @@ import com.example.BookMyshow.Repository.TheaterRepository;
 import com.example.BookMyshow.Repository.TheaterSeatsRepository;
 import com.example.BookMyshow.Service.TheaterService;
 import com.example.BookMyshow.converter.TheaterConverter;
-import com.example.BookMyshow.dto.TheaterDto;
+import com.example.BookMyshow.dto.EntryDto.TheaterEntryDto;
+import com.example.BookMyshow.dto.ResponseDto.TheaterResponseDto;
 import com.example.BookMyshow.enums.SeatType;
+import com.example.BookMyshow.enums.TheaterType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
+@Service
 public class TheaterServiceImpl implements TheaterService {
-
-    @Autowired
-    TheaterSeatsRepository theaterSeatsRepository;
 
     @Autowired
     TheaterRepository theaterRepository;
 
+    @Autowired
+    TheaterSeatsRepository theaterSeatsRepository;
+
     @Override
-    public void addTheater(TheaterDto theaterDto) {
-        TheaterEntity theaterEntity= TheaterConverter.dtoToEntity(theaterDto);
+    public TheaterResponseDto addTheater(TheaterEntryDto theaterEntryDto) {
 
-        List<TheaterSeatsEntity> seats= createTheaterSeats();
+        TheaterEntity theaterEntity = TheaterConverter.convertDtoToEntity(theaterEntryDto);
 
-        for(TheaterSeatsEntity theaterSeat: seats){
-            theaterSeat.setTheater(theaterEntity);
+
+        //create the Seats
+        List<TheaterSeatsEntity> seats = createTheaterSeats();
+
+
+        theaterEntity.setSeats(seats);
+        //I need to set the theaterId for all these seats
+
+        theaterEntity.setShows(null);
+
+        for(TheaterSeatsEntity theaterSeatsEntity:seats){
+            theaterSeatsEntity.setTheater(theaterEntity);
         }
 
-        theaterRepository.save(theaterEntity);
+        theaterEntity.setType(TheaterType.SINGLE);
+
+        log.info("The theater entity is "+ theaterEntity);
+
+        theaterEntity = theaterRepository.save(theaterEntity);
+        theaterSeatsRepository.saveAll(seats);
+
+        TheaterResponseDto theaterResponseDto = TheaterConverter.convertEntityToDto(theaterEntity);
+
+
+        return theaterResponseDto;
+
     }
 
-    public List<TheaterSeatsEntity> createTheaterSeats(){
+    List<TheaterSeatsEntity> createTheaterSeats(){
+
 
         List<TheaterSeatsEntity> seats = new ArrayList<>();
-
 
         seats.add(getTheaterSeat("1A",100,SeatType.CLASSIC));
         seats.add(getTheaterSeat("1B",100,SeatType.CLASSIC));
@@ -45,27 +71,32 @@ public class TheaterServiceImpl implements TheaterService {
         seats.add(getTheaterSeat("1D",100,SeatType.CLASSIC));
         seats.add(getTheaterSeat("1E",100,SeatType.CLASSIC));
 
-        seats.add(getTheaterSeat("2A",200,SeatType.PREMIUM));
-        seats.add(getTheaterSeat("2B",200,SeatType.PREMIUM));
-        seats.add(getTheaterSeat("2C",200,SeatType.PREMIUM));
-        seats.add(getTheaterSeat("2D",200,SeatType.PREMIUM));
-        seats.add(getTheaterSeat("2E",200,SeatType.PREMIUM));
+        seats.add(getTheaterSeat("2A",100,SeatType.PREMIUM));
+        seats.add(getTheaterSeat("2B",100,SeatType.PREMIUM));
+        seats.add(getTheaterSeat("2C",100,SeatType.PREMIUM));
+        seats.add(getTheaterSeat("2D",100,SeatType.PREMIUM));
+        seats.add(getTheaterSeat("2E",100,SeatType.PREMIUM));
 
-        theaterSeatsRepository.saveAll(seats);
         return seats;
+        //Add in this TheaterSeatEntity type
+
     }
 
-    public TheaterSeatsEntity getTheaterSeat(String seatNumber, int rate, SeatType seatType){
-        return TheaterSeatsEntity.builder().seatNumber(seatNumber).rate(rate).seatType(seatType).build();
+    TheaterSeatsEntity getTheaterSeat(String seatName, int rate, SeatType seatType){
+
+        return TheaterSeatsEntity.builder().seatNumber(seatName).rate(rate).seatType(seatType).build();
     }
+
+    //Seperate function will be create...
+
 
     @Override
-    public TheaterDto getTheater(int id) {
+    public TheaterResponseDto getTheater(int id) {
 
         TheaterEntity theaterEntity = theaterRepository.findById(id).get();
 
-        TheaterDto theaterDto = TheaterConverter.entityToDto(theaterEntity);
+        TheaterResponseDto theaterResponseDto = TheaterConverter.convertEntityToDto(theaterEntity);
 
-        return theaterDto;
+        return theaterResponseDto;
     }
 }
