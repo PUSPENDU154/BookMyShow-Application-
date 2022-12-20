@@ -7,6 +7,8 @@ public interface ShowService {
 
     ShowResponseDto addShow(ShowEntryDto showEntryDto);
 
+//    ShowResponseDto getShow(int id);
+
     //Get show
     //Complete
 }
